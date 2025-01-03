@@ -37,7 +37,7 @@ bool platform_create_window(HWND window) {
     window = CreateWindowEx(
         WS_EX_APPWINDOW,
         CLASS_NAME,
-        L"Pong",
+        L"I love Pong",
         WS_THICKFRAME | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED,
         100, 100, 1600, 720, 0, 0, instance, 0
     );
