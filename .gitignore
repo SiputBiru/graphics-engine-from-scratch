@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+
+# Debug files
+*.dSYM/
+*.ipdb
+*.pdb
+*.ilk
+
+# Temporary files
+*.swp
+*~
+*.tmp
+*.bak
