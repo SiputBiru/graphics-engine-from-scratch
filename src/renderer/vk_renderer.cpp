@@ -35,7 +35,12 @@ struct VkContext
     VkSurfaceFormatKHR surfaceFormat;
     VkPhysicalDevice gpu;
     VkDevice device;
+    VkQueue graphicsQueue;
     VkSwapchainKHR swapchain;
+    VkCommandPool commandPool;
+
+    VkSemaphore submitSemaphore;
+    VkSemaphore aquireSemaphore;
 
     uint32_t scImgCount;
     // TODO: Suballocate from Main memory allocation
@@ -169,6 +174,8 @@ bool vk_init(VkContext *vkcontext, void *window)
         deviceInfo.enabledExtensionCount = ArraySize(extensions);
 
         VK_CHECK(vkCreateDevice(vkcontext->gpu, &deviceInfo, 0, &vkcontext->device));
+
+        vkGetDeviceQueue(vkcontext->device, vkcontext->graphicsIndex, 0, &vkcontext->graphicsQueue);
     }
 
     // SwapChain Device
@@ -209,6 +216,82 @@ bool vk_init(VkContext *vkcontext, void *window)
         VK_CHECK(vkGetSwapchainImagesKHR(vkcontext->device, vkcontext->swapchain, &vkcontext->scImgCount, 0));
         VK_CHECK(vkGetSwapchainImagesKHR(vkcontext->device, vkcontext->swapchain, &vkcontext->scImgCount, vkcontext->scImages));
     }
+
+    // Command Pool
+    { 
+        VkCommandPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = vkcontext->graphicsIndex;
+        VK_CHECK(vkCreateCommandPool(vkcontext->device,&poolInfo, 0, &vkcontext->commandPool));
+    }
+
+    // Sync Object
+    {
+        VkSemaphoreCreateInfo semaInfo = {};
+        semaInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        VK_CHECK(vkCreateSemaphore(vkcontext->device, &semaInfo, 0, &vkcontext->aquireSemaphore));
+        VK_CHECK(vkCreateSemaphore(vkcontext->device, &semaInfo, 0, &vkcontext->submitSemaphore));
+    }
+
+    return true;
+}
+
+bool vk_render(VkContext* vkcontext) {
+    uint32_t imgIdx;
+    VK_CHECK(vkAcquireNextImageKHR(vkcontext->device, vkcontext->swapchain, 0, vkcontext->aquireSemaphore, 0, &imgIdx));
+
+    // Command Buffer
+    VkCommandBuffer cmd;
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandBufferCount = 1;
+    allocInfo.commandPool = vkcontext->commandPool;
+    VK_CHECK(vkAllocateCommandBuffers(vkcontext->device, &allocInfo, &cmd));
+
+    // Begin Command Buffer
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
+
+    // Render here
+    {
+        VkClearColorValue color = {1.0f, 0.0f, 1.0f, 1.0f};
+        VkImageSubresourceRange range = {};
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.layerCount = 1;
+        range.levelCount = 1;
+
+        vkCmdClearColorImage(cmd, vkcontext->scImages[imgIdx], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, &color, 1, &range);
+    }
+
+    VK_CHECK(vkEndCommandBuffer(cmd));
+
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pWaitDstStageMask = &waitStage;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.pSignalSemaphores = &vkcontext->submitSemaphore;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &vkcontext->aquireSemaphore;
+    submitInfo.waitSemaphoreCount = 1;
+    VK_CHECK(vkQueueSubmit(vkcontext->graphicsQueue, 1, &submitInfo, 0));
+    
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pSwapchains = &vkcontext->swapchain;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pImageIndices = &imgIdx;
+    presentInfo.pWaitSemaphores = &vkcontext->submitSemaphore;
+    presentInfo.waitSemaphoreCount = 1;
+    VK_CHECK(vkQueuePresentKHR(vkcontext->graphicsQueue, &presentInfo));
+
+    VK_CHECK(vkDeviceWaitIdle(vkcontext->device));
+
+    vkFreeCommandBuffers(vkcontext->device, vkcontext->commandPool, 1, &cmd);
 
     return true;
 }
