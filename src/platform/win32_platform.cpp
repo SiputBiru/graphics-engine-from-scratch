@@ -16,7 +16,7 @@ LRESULT CALLBACK platform_window_callback(HWND window, UINT msg, WPARAM wParam, 
     return DefWindowProc(window, msg, wParam, lParam);
 }
 
-bool platform_create_window(HWND window) {
+bool platform_create_window(HWND *window) {
 
     // Register the window class.
     const wchar_t CLASS_NAME[]  = L"vulkan_engine_class";
@@ -30,11 +30,11 @@ bool platform_create_window(HWND window) {
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 
     if(!RegisterClass(&wc)){
-        MessageBoxA(window, "Couldn't Register window Class", "error", MB_OK | MB_ICONEXCLAMATION);
+        MessageBoxA(0, "Couldn't Register window Class", "error", MB_OK | MB_ICONEXCLAMATION);
         return false;
     };
 
-    window = CreateWindowEx(
+    *window = CreateWindowEx(
         WS_EX_APPWINDOW,
         CLASS_NAME,
         L"I love Pong",
@@ -43,11 +43,11 @@ bool platform_create_window(HWND window) {
     );
 
     if (window == 0) {
-        MessageBoxA(window, "Couldn't Create Window", "error", MB_OK | MB_ICONEXCLAMATION);
+        MessageBoxA(0, "Couldn't Create Window", "error", MB_OK | MB_ICONEXCLAMATION);
         return false;
     }
 
-    ShowWindow(window, SW_SHOW);
+    ShowWindow(*window, SW_SHOW);
 
     return true;
 }
@@ -64,12 +64,12 @@ void platform_update_window (HWND window) {
 int main () {
     VkContext vkcontext = {};
     HWND window = 0;
-    if (!platform_create_window(window))
+    if (!platform_create_window(&window))
     {
         return -1;
     }
     
-    if (!vk_init(&vkcontext)) {
+    if (!vk_init(&vkcontext, window)) {
         return -1;
     }
 
