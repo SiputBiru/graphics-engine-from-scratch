@@ -4,6 +4,7 @@
 #elif LINUX_BUILD
 #endif
 #include <iostream>
+#include "vk_init.hpp"
 #include <wtypes.h>
 
 // #include "vk_init.cpp"
@@ -249,9 +250,7 @@ bool vk_render(VkContext* vkcontext) {
     VK_CHECK(vkAllocateCommandBuffers(vkcontext->device, &allocInfo, &cmd));
 
     // Begin Command Buffer
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkCommandBufferBeginInfo beginInfo = cmd_begin_info();
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
     // Render here
@@ -289,7 +288,7 @@ bool vk_render(VkContext* vkcontext) {
     presentInfo.waitSemaphoreCount = 1;
     VK_CHECK(vkQueuePresentKHR(vkcontext->graphicsQueue, &presentInfo));
 
-    VK_CHECK(vkDeviceWaitIdle(vkcontext->device));
+    // VK_CHECK(vkDeviceWaitIdle(vkcontext->device));
 
     vkFreeCommandBuffers(vkcontext->device, vkcontext->commandPool, 1, &cmd);
 
