@@ -3,9 +3,13 @@
 #endif 
 
 #include <windows.h>
+#include "defines.h"
+#include "platform.h"
+
 #include "renderer/vk_renderer.cpp"
 
-static bool running = true;
+global_var bool running = true;
+global_var HWND window = 0;
 
 LRESULT CALLBACK platform_window_callback(HWND window, UINT msg, WPARAM wParam,  LPARAM lParam) {
     switch (msg) {
@@ -16,7 +20,7 @@ LRESULT CALLBACK platform_window_callback(HWND window, UINT msg, WPARAM wParam, 
     return DefWindowProc(window, msg, wParam, lParam);
 }
 
-bool platform_create_window(HWND *window) {
+bool platform_create_window() {
 
     // Register the window class.
     const wchar_t CLASS_NAME[]  = L"vulkan_engine_class";
@@ -34,7 +38,7 @@ bool platform_create_window(HWND *window) {
         return false;
     };
 
-    *window = CreateWindowEx(
+    window = CreateWindowEx(
         WS_EX_APPWINDOW,
         CLASS_NAME,
         L"I love Pong",
@@ -47,7 +51,7 @@ bool platform_create_window(HWND *window) {
         return false;
     }
 
-    ShowWindow(*window, SW_SHOW);
+    ShowWindow(window, SW_SHOW);
 
     return true;
 }
@@ -63,8 +67,7 @@ void platform_update_window (HWND window) {
 
 int main () {
     VkContext vkcontext = {};
-    HWND window = 0;
-    if (!platform_create_window(&window))
+    if (!platform_create_window())
     {
         return -1;
     }
@@ -84,4 +87,12 @@ int main () {
     
 
     return 0;
+}
+
+void platform_get_window_size (uint32_t* width, uint32_t* height) {
+    RECT rect;
+    GetClientRect(window, &rect);
+
+    *width = rect.right - rect.left;
+    *height = rect.bottom - rect.top;
 }
