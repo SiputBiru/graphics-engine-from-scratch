@@ -5,6 +5,8 @@
 #include <windows.h>
 #include "defines.h"
 #include "platform.h"
+#include <iostream>
+#include <fstream>
 
 #include "renderer/vk_renderer.cpp"
 
@@ -95,4 +97,43 @@ void platform_get_window_size (uint32_t* width, uint32_t* height) {
 
     *width = rect.right - rect.left;
     *height = rect.bottom - rect.top;
+}
+
+
+
+char* platform_read_file(char* path, uint32_t* length) {
+    char *result = 0;
+
+    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    
+    if (file != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER size;
+        if(GetFileSizeEx(file, &size)){
+            *length = (uint32_t) size.QuadPart;
+            result = new char[*length];
+
+            DWORD bytesRead;
+            if (ReadFile(file, result, *length, &bytesRead, 0)){
+                // Success
+                if (bytesRead != *length) {
+                    delete[] result;
+                    result = nullptr;
+                    std::cout << "File size does not match bytes read" << std::endl;
+                }
+            }else {
+                // TODO: Assert
+                std::cout << "Failed reading file" << std::endl;
+            };
+        } else {
+            // TODO: Assert
+            std::cout << "Failed getting size file" << std::endl;
+        };
+        CloseHandle(file);
+    } else {
+        // TODO: Assert
+        std::cout << "Failed to open file " << std::endl;
+    }
+
+
+    return result;
 }

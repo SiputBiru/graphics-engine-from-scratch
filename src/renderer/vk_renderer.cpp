@@ -44,6 +44,9 @@ struct VkContext
     VkRenderPass renderPass;
     VkCommandPool commandPool;
 
+    VkPipelineLayout pipeLayout;
+    VkPipeline pipeline;
+
     VkSemaphore submitSemaphore;
     VkSemaphore acquireSemaphore;
 
@@ -296,6 +299,119 @@ bool vk_init(VkContext *vkcontext, void *window)
 
     }
 
+    // Pipeline Layout
+    {
+        VkPipelineLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+        VK_CHECK(vkCreatePipelineLayout(vkcontext->device, &layoutInfo, 0, &vkcontext->pipeLayout));
+    }
+
+    // Create Pipeline
+    {
+        VkShaderModule vertexShader, fragmentShader = {};
+
+        uint32_t sizeinBytes;
+        char* code = platform_read_file("assets/shaders/shader.vert.spv", &sizeinBytes);
+
+        VkShaderModuleCreateInfo shaderInfo = {};
+        shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        shaderInfo.codeSize = sizeinBytes;
+        shaderInfo.pCode = (uint32_t *)code;
+        VK_CHECK(vkCreateShaderModule(vkcontext->device, &shaderInfo, 0, &vertexShader));
+        // TODO: Suballocation from main allocation
+        delete code;
+
+        code = platform_read_file("assets/shaders/shader.frag.spv", &sizeinBytes);
+        shaderInfo.codeSize = sizeinBytes;
+        shaderInfo.pCode = (uint32_t *)code;
+        VK_CHECK(vkCreateShaderModule(vkcontext->device, &shaderInfo, 0, &fragmentShader));
+        // TODO: Suballocate from main allocation
+        delete code;
+
+        VkPipelineShaderStageCreateInfo vertexStage = {};
+        vertexStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertexStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertexStage.pName = "main";
+        vertexStage.module = vertexShader;
+
+        VkPipelineShaderStageCreateInfo fragStage = {};
+        fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragStage.pName = "main";
+        fragStage.module = fragmentShader;
+
+        VkPipelineShaderStageCreateInfo shaderStages[] = {
+            vertexStage,
+            fragStage
+        };
+
+        VkPipelineVertexInputStateCreateInfo vertexInputState = {};
+        vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+
+        VkPipelineColorBlendAttachmentState colorAttachment = {};
+        colorAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorAttachment.blendEnable = VK_FALSE;
+
+        VkPipelineColorBlendStateCreateInfo colorBlendState = {};
+        colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendState.pAttachments = &colorAttachment;
+        colorBlendState.attachmentCount = 1;
+
+        VkPipelineRasterizationStateCreateInfo rasterizationState = {};
+        rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        // Look at this code if you can't see anything
+        rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizationState.lineWidth = 1.0f;
+
+        VkPipelineMultisampleStateCreateInfo multisampleState = {};
+        multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {};
+        inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        VkRect2D scissor = {};
+        VkViewport viewport = {};
+
+        VkPipelineViewportStateCreateInfo viewportState = {};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.scissorCount = 1;
+        viewportState.pScissors = &scissor;
+        viewportState.pViewports = &viewport;
+        viewportState.viewportCount = 1;
+
+        VkDynamicState dynamicStates[] = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+
+        VkPipelineDynamicStateCreateInfo dynamicState = {};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.pDynamicStates = dynamicStates;
+        dynamicState.dynamicStateCount = ArraySize(dynamicStates);
+
+        VkGraphicsPipelineCreateInfo pipeInfo = {};
+        pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipeInfo.layout = vkcontext->pipeLayout;
+        pipeInfo.renderPass = vkcontext->renderPass;
+        pipeInfo.pVertexInputState = &vertexInputState;
+        pipeInfo.pColorBlendState = &colorBlendState;
+        pipeInfo.pStages = shaderStages;
+        pipeInfo.stageCount = ArraySize(shaderStages);
+        pipeInfo.pRasterizationState = &rasterizationState;
+        pipeInfo.pViewportState = &viewportState;
+        pipeInfo.pDynamicState = &dynamicState;
+        pipeInfo.pMultisampleState = &multisampleState;
+        pipeInfo.pInputAssemblyState = &inputAssemblyState;
+
+        VK_CHECK(vkCreateGraphicsPipelines(vkcontext->device, 0, 1, &pipeInfo, 0, &vkcontext->pipeline));
+    }
+
     // Command Pool
     { 
         VkCommandPoolCreateInfo poolInfo = {};
@@ -311,6 +427,7 @@ bool vk_init(VkContext *vkcontext, void *window)
         VK_CHECK(vkCreateSemaphore(vkcontext->device, &semaInfo, 0, &vkcontext->acquireSemaphore));
         VK_CHECK(vkCreateSemaphore(vkcontext->device, &semaInfo, 0, &vkcontext->submitSemaphore));
     }
+
 
     return true;
 }
