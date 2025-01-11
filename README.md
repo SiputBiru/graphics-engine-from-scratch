@@ -1,2 +1,2 @@
-# pong-from-scratch
-making Pong from scratch with C++ and Vulkan
+# Graphics-Engine-scratch
+making Graphics Engine from scratch with C++ and Vulkan
