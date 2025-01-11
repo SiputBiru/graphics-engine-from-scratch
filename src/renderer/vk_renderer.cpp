@@ -449,9 +449,9 @@ bool vk_render(VkContext* vkcontext) {
     VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
     // Render Pass
-
     VkClearValue clearValue = {};
-    clearValue.color = {1, 1, 0, 1};
+    // too change clear value or the background
+    clearValue.color = {0, 0, 0, 0};
 
     VkRenderPassBeginInfo rpBeginInfo = {};
     rpBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
