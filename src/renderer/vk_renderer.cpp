@@ -461,7 +461,23 @@ bool vk_render(VkContext* vkcontext) {
     rpBeginInfo.pClearValues = &clearValue;
     rpBeginInfo.clearValueCount = 1;
 
-    vkCmdBeginRenderPass(cmd, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE);    
+    vkCmdBeginRenderPass(cmd, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE); 
+    // Rendering Commands
+    {
+        VkRect2D scissor = {};
+        scissor.extent = vkcontext->screenSize;
+
+        VkViewport viewport = {};
+        viewport.width = (float)vkcontext->screenSize.width;
+        viewport.height = (float)vkcontext->screenSize.height;
+        viewport.maxDepth = 1.0f;
+
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vkcontext->pipeline);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+    }   
 
     vkCmdEndRenderPass(cmd);
 
